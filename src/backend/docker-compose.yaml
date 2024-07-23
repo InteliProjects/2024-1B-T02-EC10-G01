@@ -1,0 +1,109 @@
+version: '3'
+
+services:
+  
+  postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres 
+      POSTGRES_DB: asky
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./init-db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+ 
+  pyxis:
+    build: ./pyxis
+    ports:
+      - "8001:8001"
+    environment:
+      DATABASE_URL: "postgresql+asyncpg://postgres:postgres@postgres/asky"
+      GATEWAY_URL: "http://gateway:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  auth:
+    build: ./auth
+    ports:
+      - "8003:8003"
+    environment:
+      DATABASE_URL: "postgresql+asyncpg://postgres:postgres@postgres/asky"
+      GATEWAY_URL: "http://gateway:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+  
+  request_management:
+    build: ./request_management
+    ports:
+      - "8002:8002"
+    environment:
+      DATABASE_URL: "postgresql+asyncpg://postgres:postgres@postgres/asky"
+      GATEWAY_URL: "http://gateway:80"
+      RABBITMQ_HOST: "rabbitmq"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  gateway:
+    build: ./gateway
+    ports:
+      - "8000:80"
+    depends_on: 
+      - pyxis
+      - request_management
+      - postgres
+      - auth
+      - redis
+      
+  # rabbitmq:
+  #   image: rabbitmq:management
+  #   container_name: rabbitmq
+  #   ports:
+  #     - "5672:5672"  
+  #     - "15672:15672" 
+  #   environment:
+  #     RABBITMQ_DEFAULT_USER: rabbitmq
+  #     RABBITMQ_DEFAULT_PASS: rabbitmq
+
+  redis:
+    image: redis
+    container_name: redis
+    ports:
+      - "6379:6379"
+
+  # filebeat:
+  #   build: ./filebeat/
+  #   container_name: filebeat
+  #   volumes:
+  #     - ./logs:/src/logs
+  #   depends_on:
+  #     - elasticsearch
+  #     - kibana
+  #   network_mode: "host"
+
+  # elasticsearch:
+  #   build: ./elasticsearch/
+  #   container_name: elasticsearch
+  #   ports:
+  #     - "9200:9200"
+  #     - "9300:9300"
+
+  # kibana:
+  #   build: ./kibana/
+  #   container_name: kibana
+  #   ports:
+  #     - "5601:5601"
+  #   depends_on:
+  #     - elasticsearch
+
+volumes:
+    elasticsearch_data:
+        driver: local

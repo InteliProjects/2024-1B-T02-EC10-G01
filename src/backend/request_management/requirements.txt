@@ -1,0 +1,14 @@
+fastapi==0.110.3
+uvicorn==0.29.0
+sqlalchemy
+asyncpg
+qrcode[pil]
+pyjwt[crypto]
+starlette
+aiohttp
+pika
+plusminus==0.7.0
+redis==5.0.4
+firebase-admin
+python-dotenv
+pytz
